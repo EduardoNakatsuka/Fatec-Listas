@@ -1,0 +1,77 @@
+-- Create tables
+
+CREATE TABLE ALUNO(
+   RA NUMBER NOT NULL PRIMARY KEY, 
+   NOME VARCHAR2(120) NOT NULL,
+   SEXO CHAR(1) NOT NULL, 
+   COD_CURSO NUMBER(3) NOT NULL, 
+   CONSTRAINT ALUNO_CURSO_FK FOREIGN KEY (COD_CURSO)
+                              REFERENCES CURSO (COD_CURSO)
+); 
+
+
+CREATE TABLE CURSO(
+   COD_CURSO NUMBER(3) NOT NULL PRIMARY KEY, 
+   NOME VARCHAR2(120) NOT NULL,
+   CONSTRAINT CURSO_NOME_IDX UNIQUE (NOME)
+); 
+
+
+CREATE TABLE MENSALIDADE(
+   RA NUMBER NOT NULL, 
+   ANOMES CHAR(6) NOT NULL, 
+   DATA_VENCIMENTO DATE NOT NULL , 
+   VALOR NUMBER (8,2) NULL, 
+   DESCONTO NUMBER (8,2) NOT NULL,
+   DATA_PAGAMENTO DATE,
+   CONSTRAINT MENSALIDADE_PK PRIMARY KEY (RA, ANOMES), 
+   CONSTRAINT  MENSALIDADE_ALUNO_FK FOREIGN KEY (RA)
+                                    REFERENCES ALUNO (RA)
+);
+
+-- Create the procedure
+CREATE OR REPLACE
+    PROCEDURE PROC_INSERT_NEW_COURSE(
+        P_COD_CURSO IN NUMBER,
+        P_NOME IN VARCHAR2,
+        P_RETURN OUT NUMBER
+    )
+IS
+    QTY NUMBER(1);
+BEGIN
+    IF LENGTH(P_COD_CURSO) <= 3 THEN /*DOES THE ID HAVE LESS THAN 3 DIGITS?*/
+        SELECT COUNT(*) INTO QTY FROM CURSO WHERE COD_CURSO = P_COD_CURSO; 
+        IF QTY > 0 THEN /*DOES THE ID ALREADY EXIST?*/
+            P_RETURN := 997; /*id already exists*/
+        ELSE
+            IF LENGTH(P_NOME) <= 120 THEN /*IS THE NAME SMALLER THAN 120 CHARS?*/
+                SELECT COUNT(*) INTO QTY FROM CURSO WHERE UPPER(NOME) = UPPER(P_NOME);
+                    IF QTY > 0 THEN /*DOES THE NAME EXIST ALREADY?*/
+                        P_RETURN := 996; /*name already exists*/
+                    ELSE
+                        INSERT INTO CURSO (COD_CURSO, NOME)
+                            VALUES(P_COD_CURSO, P_NOME); /*CREATES NEW ENTRY*/
+                        COMMIT;
+                        P_RETURN := 0; /*entry was created*/
+                    END IF;
+            ELSE
+                P_RETURN := 998; /*name is too big*/
+            END IF;
+        END IF;
+    ELSE
+        P_RETURN := 999; /*id is too big*/
+    END IF;
+
+    EXCEPTION
+        WHEN OTHERS THEN
+            DBMS_OUTPUT.PUT_LINE('ERRO DESCONHECIDO');
+                ROLLBACK;
+END;
+
+-- Test the procedure
+DECLARE
+    R NUMBER;
+BEGIN
+    PROC_INSERT_NEW_COURSE(1, 'XABLAU', R);
+    DBMS_OUTPUT.PUT_LINE('RESULTADO DA EXECUCAO: ' || R);
+END;
